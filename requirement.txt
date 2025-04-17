@@ -1,6 +1,6 @@
 
 # requirements.txt
-
+google-genai==1.7.0
 streamlit
 google-generativeai # For Gemini API interaction (covers genai and generativeai.types)
 selenium          # For browser automation (web scraping)
