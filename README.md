@@ -50,8 +50,8 @@ Before you begin, ensure you have the following installed and configured:
     *   Check Your Chrome Version: In Chrome, go to `chrome://settings/help`. Note the full version number (e.g., 114.0.5735.199).
     *   Download ChromeDriver: Go to the [Chrome for Testing availability dashboard](https://googlechromelabs.github.io/chrome-for-testing/). Find the version matching your Chrome browser and download the `chromedriver` binary for your operating system (e.g., `chromedriver-win64.zip`, `chromedriver-mac-x64.zip`, `chromedriver-linux64.zip`). Unzip the file if necessary.
     *   **Placement (Choose ONE):**
-        *   **(Recommended for Simplicity): Add to PATH:** Add the *directory* containing the extracted `chromedriver` executable to your system's **PATH** environment variable. This allows the script (`streamlit_app.py` with `CHROMEDRIVER_PATH = None`) to find it automatically.
-        *   **(Alternative): Set Script Variable:** Modify the `CHROMEDRIVER_PATH` variable near the top of `streamlit_app.py` to the *full, absolute path* of the `chromedriver` executable itself (e.g., `CHROMEDRIVER_PATH = "/Users/you/drivers/chromedriver"` or `CHROMEDRIVER_PATH = "C:\\webdrivers\\chromedriver.exe"`).
+        *   **(Recommended for Simplicity): Add to PATH:** Add the *directory* containing the extracted `chromedriver` executable to your system's **PATH** environment variable. This allows the script (`app.py` with `CHROMEDRIVER_PATH = None`) to find it automatically.
+        *   **(Alternative): Set Script Variable:** Modify the `CHROMEDRIVER_PATH` variable near the top of `app.py` to the *full, absolute path* of the `chromedriver` executable itself (e.g., `CHROMEDRIVER_PATH = "/Users/you/drivers/chromedriver"` or `CHROMEDRIVER_PATH = "C:\\webdrivers\\chromedriver.exe"`).
 
 ## Setup and Running
 
@@ -95,10 +95,10 @@ GitHub Codespaces provides a complete, configurable development environment in t
         GOOGLE_API_KEY = "API_KEY" # <-- Replace with YOUR ACTUAL KEY
         ```
     *   **Save the file** (File -> Save, or `Ctrl+S` / `Cmd+S`).
-7.  **ChromeDriver Check:** Codespaces environments (like the default Python/Debian images) often come with compatible versions of Chrome and ChromeDriver pre-installed and configured in the PATH. The default setting `CHROMEDRIVER_PATH = None` in `streamlit_app.py` should generally work without changes here.
+7.  **ChromeDriver Check:** Codespaces environments (like the default Python/Debian images) often come with compatible versions of Chrome and ChromeDriver pre-installed and configured in the PATH. The default setting `CHROMEDRIVER_PATH = None` in `app.py` should generally work without changes here.
 8.  **Run the Application:** In the Codespace terminal:
     ```bash
-    streamlit run streamlit_app.py
+    streamlit run app.py
     ```
 9.  **Access the App:** Codespaces automatically detects the running Streamlit application and forwards the port (usually 8501). A notification should appear in the bottom-right corner of VS Code with a button like "Open in Browser". Click this button to access your running chatbot.
 
@@ -174,7 +174,7 @@ This method requires setting up the environment directly on your computer.
 
 8.  **Run the Application:** In your terminal (ensure the `.venv` is still active):
     ```bash
-    streamlit run streamlit_app.py
+    streamlit run app.py
     ```
 9.  **Access the App:** Streamlit will typically output `Network URL` and `External URL` and automatically attempt to open the application in your default web browser at `http://localhost:8501`.
 
@@ -211,7 +211,7 @@ This method requires setting up the environment directly on your computer.
 *   **`selenium.common.exceptions.WebDriverException: Message: 'chromedriver' executable needs to be in PATH...`** or similar `WebDriverException`:
     *   Verify your ChromeDriver version exactly matches your Chrome browser version.
     *   Confirm ChromeDriver is correctly placed in a directory listed in your system's PATH environment variable (and restart your terminal/VS Code after modifying PATH).
-    *   Alternatively, double-check the absolute path set in the `CHROMEDRIVER_PATH` variable in `streamlit_app.py` is correct.
+    *   Alternatively, double-check the absolute path set in the `CHROMEDRIVER_PATH` variable in `app.py` is correct.
     *   Ensure the `chromedriver` file has execute permissions (`chmod +x chromedriver` on Linux/macOS).
 *   **`KeyError: 'GOOGLE_API_KEY'`** during startup or API calls:
     *   Ensure the `.streamlit/` directory exists in your project root.
