@@ -92,7 +92,7 @@ GitHub Codespaces provides a complete, configurable development environment in t
     *   **Add Your Key:** Paste the following line into the `secrets.toml` editor tab, replacing the placeholder with your **actual** Google API Key:
         ```toml
         # .streamlit/secrets.toml
-        GOOGLE_API_KEY = "AIzaSyCb8_S0_pDnbij_tfUTmH84HaJJKYGf0K4" # <-- Replace with YOUR ACTUAL KEY
+        GOOGLE_API_KEY = "API_KEY" # <-- Replace with YOUR ACTUAL KEY
         ```
     *   **Save the file** (File -> Save, or `Ctrl+S` / `Cmd+S`).
 7.  **ChromeDriver Check:** Codespaces environments (like the default Python/Debian images) often come with compatible versions of Chrome and ChromeDriver pre-installed and configured in the PATH. The default setting `CHROMEDRIVER_PATH = None` in `streamlit_app.py` should generally work without changes here.
@@ -154,7 +154,7 @@ This method requires setting up the environment directly on your computer.
     *   **Edit File:** Open `.streamlit/secrets.toml` in VS Code and add your Google API key, replacing the placeholder:
         ```toml
         # .streamlit/secrets.toml
-        GOOGLE_API_KEY = "AIzaSyCb8_S0_pDnbij_tfUTmH84HaJJKYGf0K4" # <-- Replace with YOUR ACTUAL KEY
+        GOOGLE_API_KEY = "API_KEY" # <-- Replace with YOUR ACTUAL KEY
         ```
     *   **Save the file.**
     *   **IMPORTANT - Git Ignore:** Ensure your `.gitignore` file exists in the project root and contains a line to ignore the secrets directory:
