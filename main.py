@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# streamlit_app.py (Single File Version - Using genai.Client as per Original Script)
+# streamlit_app.py
 """
 Streamlit User Interface and Core Logic for the Sports Chatbot.
 Includes Gemini interaction, web scraping, and FAISS caching.
@@ -15,14 +15,13 @@ import re
 import sys
 import hashlib
 import numpy as np
-import traceback # For detailed error logging
+import traceback
 from live_matches import display_live_matches
-from dotenv import load_dotenv # For local dev
+from dotenv import load_dotenv
 
 # --- Gemini Imports ---
 try:
     import google.genai as genai
-    # Ensure 'types' is imported correctly if needed by client.chats.create or embed_content config
     from google.genai import types as genai_types
     from google.generativeai.types import StopCandidateException
     print(f"Using google-genai SDK version: {genai.__version__}")
@@ -72,24 +71,63 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 print(f"Cache directory configured: {os.path.abspath(CACHE_DIR)}")
 
 # --- Global variables ---
-# Client will be initialized in the cached function
 client = None
 faiss_index = None
 index_id_to_data = {}
 next_faiss_id = 0
 
 # --- Page Configuration ---
+# This MUST be the first Streamlit command in the script
 st.set_page_config(
     page_title="Sports Chatbot ⚽",
     page_icon="🏆",
     layout="wide",
-    initial_sidebar_state="auto"
+    initial_sidebar_state="expanded"
 )
-# Create a two-column layout
-col1, col2 = st.columns([2, 1])
+
+# Add custom CSS for better styling
+st.markdown("""
+<style>
+    .main .block-container {
+        padding-top: 2rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        max-width: 1200px;
+    }
+    
+    /* Ensure chat messages have proper spacing */
+    .stChatMessage {
+        margin-bottom: 1rem;
+    }
+    
+    /* Style for live match cards */
+    .match-card {
+        border: 1px solid #e6e6e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: white;
+    }
+    
+    /* Live indicator styling */
+    .live-indicator {
+        background-color: #ff4b4b;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        display: inline-block;
+    }
+    
+    /* Make sidebar wider when showing matches */
+    [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
+        width: 350px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- API Key Retrieval (from Streamlit Secrets) ---
-# We need the key *before* initializing the client
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     if not GOOGLE_API_KEY:
@@ -105,16 +143,12 @@ except Exception as e:
     print(f"❌ ERROR: Failed to get API Key: {e}", file=sys.stderr)
     st.stop()
 
-
 # --- Helper Functions ---
-
 def get_embedding(text: str, task_type="RETRIEVAL_QUERY") -> np.ndarray | None:
     """Generates an embedding for the given text using the configured model."""
-    global client # Uses the globally assigned client
+    global client
     if not client:
         print("   ⚠️ Gemini client (global) not initialized yet in get_embedding.", file=sys.stderr)
-        # Attempt to show an error in UI if possible, otherwise just log and fail
-        # st.error("Client not ready for embedding.") # Might cause issues if called outside main thread
         return None
     if not text or not isinstance(text, str):
         print(f"   ⚠️ Invalid input for embedding: {type(text)}", file=sys.stderr)
@@ -123,33 +157,29 @@ def get_embedding(text: str, task_type="RETRIEVAL_QUERY") -> np.ndarray | None:
     if not text: return None
 
     try:
-        # Use the client object's method as per the original script
         response = client.models.embed_content(
             model=EMBEDDING_MODEL,
-            contents=[text], # Pass as a list
-            config=genai_types.EmbedContentConfig(task_type=task_type) # Use imported types
+            contents=[text],
+            config=genai_types.EmbedContentConfig(task_type=task_type)
         )
-        # Access response using dot notation as per client object methods
         if response.embeddings and response.embeddings[0].values:
             return np.array(response.embeddings[0].values).astype('float32')
         else:
             print(f"   ⚠️ No embeddings returned from API for text snippet: '{text[:50]}...'", file=sys.stderr)
-            # print(f"   DEBUG Response: {response}") # Optional debug
             return None
     except Exception as e:
         print(f"   ⚠️ Embedding generation failed: {type(e).__name__} - {e}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         return None
 
-# --- Caching Utilities (normalize_query_for_filename, save_faiss_cache, load_faiss_cache) ---
-# --- [ Keep these functions exactly as they were in the previous single-file version ] ---
+# --- Caching Utilities ---
 def normalize_query_for_filename(query: str) -> str:
     """Creates a safe filename hash from a query."""
     return hashlib.sha1(query.encode('utf-8')).hexdigest()
 
 def save_faiss_cache():
     """Saves the current FAISS index and mapping to disk."""
-    global faiss_index, index_id_to_data, next_faiss_id # Uses global variables
+    global faiss_index, index_id_to_data, next_faiss_id
     if faiss_index and next_faiss_id > 0 and faiss_index.ntotal > 0:
         try:
             os.makedirs(CACHE_DIR, exist_ok=True)
@@ -157,7 +187,6 @@ def save_faiss_cache():
             faiss.write_index(faiss_index, CACHE_INDEX_FILE)
 
             print(f"   Saving FAISS mapping ({len(index_id_to_data)} items) to {CACHE_MAPPING_FILE}...")
-            # Convert int keys to str for JSON
             save_data = {"next_id": next_faiss_id, "mapping": {str(k): v for k, v in index_id_to_data.items()}}
             with open(CACHE_MAPPING_FILE, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, indent=2, ensure_ascii=False)
@@ -186,7 +215,6 @@ def load_faiss_cache():
             print(f"   Attempting to load FAISS mapping from {CACHE_MAPPING_FILE}...")
             with open(CACHE_MAPPING_FILE, 'r', encoding='utf-8') as f:
                 loaded_data = json.load(f)
-            # Convert str keys back to int
             local_index_id_to_data = {int(k): v for k, v in loaded_data.get("mapping", {}).items()}
             local_next_faiss_id = loaded_data.get("next_id", 0)
             print(f"   FAISS mapping loaded ({len(local_index_id_to_data)} items, next_id: {local_next_faiss_id}).")
@@ -195,7 +223,7 @@ def load_faiss_cache():
             if local_faiss_index.ntotal != len(local_index_id_to_data):
                 print(f"   ⚠️ FAISS cache inconsistency: Index size ({local_faiss_index.ntotal}) != Mapping size ({len(local_index_id_to_data)}). Resetting.", file=sys.stderr)
                 raise ValueError("Cache inconsistency: Index size mismatch")
-            if local_faiss_index.ntotal != local_next_faiss_id and local_next_faiss_id != 0 :
+            if local_faiss_index.ntotal != local_next_faiss_id and local_next_faiss_id != 0:
                  print(f"   ⚠️ FAISS cache potential inconsistency: Index size ({local_faiss_index.ntotal}) != Next ID ({local_next_faiss_id}).", file=sys.stderr)
 
             print(f"   ✅ FAISS cache loaded successfully ({local_faiss_index.ntotal} items).")
@@ -212,8 +240,7 @@ def load_faiss_cache():
     local_next_faiss_id = 0
     return local_faiss_index, local_index_id_to_data, local_next_faiss_id
 
-# --- Web Scraping Function (_perform_web_search_and_extract) ---
-# --- [ Keep this function exactly as it was ] ---
+# --- Web Scraping Function ---
 def _perform_web_search_and_extract(query: str) -> dict:
     """Internal function to perform web scraping using Selenium and BeautifulSoup."""
     print(f"\n[_perform_web_search_and_extract] Executing LIVE search for: '{query}'")
@@ -258,7 +285,7 @@ def _perform_web_search_and_extract(query: str) -> dict:
         url = f"https://www.bing.com/search?q={query_encoded}&form=QBLH"
         print(f"   Navigating (live) to: {url}")
         driver.set_page_load_timeout(WEBDRIVER_TIMEOUT)
-
+        
         try:
             driver.get(url)
             print(f"   Page loaded: {driver.title}")
@@ -317,7 +344,6 @@ def _perform_web_search_and_extract(query: str) -> dict:
             main_page_scraped = False
 
         print("   Extracting top result links (live)...")
-
         
         main_results_links = []
         try:
@@ -350,7 +376,7 @@ def _perform_web_search_and_extract(query: str) -> dict:
                     print(f"      Body tag found.")
                 except TimeoutException:
                     print(f"      ⚠️ Body tag not found quickly, proceeding anyway.", file=sys.stderr)
-
+                
                 print(f"      Scraping content from '{link_title}'...")
                 link_page_source = driver.page_source
                 soup_link = BeautifulSoup(link_page_source, "lxml")
@@ -419,12 +445,10 @@ def _perform_web_search_and_extract(query: str) -> dict:
     if not scraped_data: scraped_data = {"error": "Scraping failed to produce any data.", "_cache_status": "Live Search Failed"}
     return scraped_data
 
-
-# --- Caching Wrapper Function (get_search_results_with_cache) ---
-# --- [ Keep this function exactly as it was ] ---
+# --- Caching Wrapper Function ---
 def get_search_results_with_cache(query: str) -> dict:
     """Checks semantic cache using FAISS. If miss, performs live search and caches."""
-    global faiss_index, index_id_to_data, next_faiss_id # Uses global cache variables
+    global faiss_index, index_id_to_data, next_faiss_id
 
     print(f"\n[get_search_results_with_cache] Received query: '{query}'")
     if not query or not isinstance(query, str):
@@ -442,7 +466,7 @@ def get_search_results_with_cache(query: str) -> dict:
         return live_data
 
     print(f"   Generating embedding for query: '{query[:100]}...'")
-    new_query_vector = get_embedding(query, task_type="RETRIEVAL_QUERY") # Uses global client
+    new_query_vector = get_embedding(query, task_type="RETRIEVAL_QUERY")
 
     if new_query_vector is None:
         print("   ⚠️ Embedding failed. Skipping cache lookup. Performing live search.")
@@ -475,7 +499,6 @@ def get_search_results_with_cache(query: str) -> dict:
 
                 if similarity_score >= CACHE_SIMILARITY_THRESHOLD:
                     print(f"   Similarity score meets threshold {CACHE_SIMILARITY_THRESHOLD}.")
-                    # Check mapping using int key
                     if nearest_neighbor_id in index_id_to_data:
                         cached_query_str, cached_filepath = index_id_to_data[nearest_neighbor_id]
                         print(f"   Found mapping: Original='{cached_query_str}', File='{cached_filepath}'")
@@ -484,7 +507,6 @@ def get_search_results_with_cache(query: str) -> dict:
                             try:
                                 with open(cached_filepath, 'r', encoding='utf-8') as f:
                                     cached_data = json.load(f)
-                                # Clean up internal fields before returning
                                 cached_data.pop('_cached_original_query', None)
                                 cached_data.pop('_cache_timestamp', None)
                                 cached_data['_cache_status'] = f'HIT (Similarity: {similarity_score:.4f})'
@@ -533,10 +555,10 @@ def get_search_results_with_cache(query: str) -> dict:
                     print(f"   Adding vector to FAISS index (ID: {current_id})...")
                     faiss_index.add(new_query_vector.reshape(1, -1))
                     print(f"   Adding mapping to index_id_to_data (ID: {current_id})...")
-                    index_id_to_data[current_id] = [query, cache_filepath] # Use int key
+                    index_id_to_data[current_id] = [query, cache_filepath]
                     next_faiss_id += 1
                     print(f"   FAISS index size: {faiss_index.ntotal}. Mapping size: {len(index_id_to_data)}. Next ID: {next_faiss_id}")
-                    save_faiss_cache() # Save updates
+                    save_faiss_cache()
                 else:
                     print("   ⚠️ Skipping FAISS index update: embedding vector missing.")
             except Exception as e_save:
@@ -562,7 +584,6 @@ def get_search_results_with_cache(query: str) -> dict:
         print("[get_search_results_with_cache] Returning live search result.")
         return live_data
 
-
 # --- Tool and Instruction Definition Functions ---
 def get_tools():
     """Returns the list of tools (functions) available to the Gemini model."""
@@ -573,7 +594,6 @@ def get_tools():
 
 def get_system_instruction():
     """Returns the system instruction string for the Gemini model."""
-    # --- [ Keep the FULL System Instruction Text Here ] ---
     return """You are a specialized Sports Information Chatbot. Your primary goal is to provide accurate and relevant answers to user questions about sports using your internal knowledge FIRST. You also have a web search tool (`get_search_results_with_cache`) as a backup.
 
 **Decision Process:**
@@ -676,7 +696,6 @@ if "messages" not in st.session_state:
     print("Initialized new chat history in session state.")
 
 # Initialize the Gemini Chat object if it doesn't exist
-# Uses the client.chats.create() method as per original script
 if "chat" not in st.session_state:
     try:
         print(f"\nCreating NEW Gemini Chat Session with model '{MODEL_NAME}' using client.chats.create()...")
@@ -699,7 +718,53 @@ if "chat" not in st.session_state:
         print(traceback.format_exc(), file=sys.stderr)
         st.stop()
 
-# --- UI Display ---
+# Initialize session state for live matches toggle
+if "show_live_matches" not in st.session_state:
+    st.session_state.show_live_matches = True
+
+# --- Sidebar ---
+with st.sidebar:
+    st.header("⚙️ Bot Info & Settings")
+    st.markdown("---")
+    st.write(f"**Model:** `{MODEL_NAME}`")
+    st.write(f"**Embedding:** `{EMBEDDING_MODEL}`")
+    
+    # Live matches toggle
+    st.markdown("---")
+    st.subheader("🏏 Live Matches")
+    show_matches = st.toggle("Show Live Cricket Updates", value=st.session_state.show_live_matches)
+    
+    # Update session state if toggle changed
+    if show_matches != st.session_state.show_live_matches:
+        st.session_state.show_live_matches = show_matches
+        st.rerun()
+    
+    # Display live matches in sidebar if enabled
+    if st.session_state.show_live_matches:
+        st.markdown("---")
+        display_live_matches()
+    
+    # Cache info
+    st.markdown("---")
+    st.subheader("Cache Details")
+    st.write(f"**Status:** {'Loaded' if faiss_index is not None else 'Not Loaded'}")
+    if faiss_index is not None: st.write(f"**Items Indexed:** `{faiss_index.ntotal}`")
+    else: st.write("**Items Indexed:** `N/A`")
+    st.write(f"**Directory:** `{os.path.abspath(CACHE_DIR)}`")
+    st.write(f"**Similarity Threshold:** `{CACHE_SIMILARITY_THRESHOLD}`")
+    
+    # Session control
+    st.markdown("---")
+    st.header("📄 Session Control")
+    if st.button("Clear Chat History", key="clear_chat"):
+        st.session_state.messages = []
+        if "chat" in st.session_state: del st.session_state["chat"]
+        print("Chat history and session object cleared.")
+        st.rerun()
+    st.caption("Reload page to fully reset.")
+
+# --- Main Content Area ---
+# Display title and chatbot
 st.title("🏆 Sports Chatbot ⚽")
 st.caption(f"Powered by Google Gemini ({MODEL_NAME}) with Web Search & FAISS Semantic Cache")
 st.markdown("---")
@@ -727,8 +792,6 @@ if prompt := st.chat_input("Ask me about sports scores, stats, rules, or comment
                 # *** Send message using the chat object created by client.chats.create() ***
                 # This object should handle automatic function calling if configured correctly
                 response = st.session_state.chat.send_message(prompt)
-
-                # --- [ Keep the response handling logic exactly the same ] ---
                 if response.text:
                     full_response_content = response.text
                     print(f"✅ Received response text: {full_response_content[:200]}...")
@@ -766,26 +829,3 @@ if prompt := st.chat_input("Ask me about sports scores, stats, rules, or comment
         message_placeholder.markdown(full_response_content)
 
     st.session_state.messages.append({"role": "assistant", "content": full_response_content})
-
-# --- Sidebar ---
-# --- [ Keep the Sidebar code exactly the same ] ---
-with st.sidebar:
-    st.header("⚙️ Bot Info & Settings")
-    st.markdown("---")
-    st.write(f"**Model:** `{MODEL_NAME}`")
-    st.write(f"**Embedding:** `{EMBEDDING_MODEL}`")
-    st.markdown("---")
-    st.subheader("Cache Details")
-    st.write(f"**Status:** {'Loaded' if faiss_index is not None else 'Not Loaded'}")
-    if faiss_index is not None: st.write(f"**Items Indexed:** `{faiss_index.ntotal}`")
-    else: st.write("**Items Indexed:** `N/A`")
-    st.write(f"**Directory:** `{os.path.abspath(CACHE_DIR)}`")
-    st.write(f"**Similarity Threshold:** `{CACHE_SIMILARITY_THRESHOLD}`")
-    st.markdown("---")
-    st.header("📄 Session Control")
-    if st.button("Clear Chat History", key="clear_chat"):
-        st.session_state.messages = []
-        if "chat" in st.session_state: del st.session_state["chat"]
-        print("Chat history and session object cleared.")
-        st.rerun()
-    st.caption("Reload page to fully reset.")
