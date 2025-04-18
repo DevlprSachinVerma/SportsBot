@@ -2,15 +2,11 @@ import streamlit as st
 from components.chatbot import display_chatbot
 from components.live_matches import display_live_matches
 from services.gemini_service import initialize_gemini_client
+from config import PAGE_CONFIG
 import os
 
 # This MUST be the first Streamlit command
-st.set_page_config(
-    page_title="Sports Chatbot ⚽",
-    page_icon="🏆",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(**PAGE_CONFIG)
 
 # Add custom CSS for dark theme
 st.markdown("""
@@ -98,8 +94,6 @@ if "selected_match_title" not in st.session_state:
     st.session_state.selected_match_title = None
 if "show_live_matches" not in st.session_state:
     st.session_state.show_live_matches = True
-if "show_matches_in_sidebar" not in st.session_state:
-    st.session_state.show_matches_in_sidebar = True
 
 # Initialize Gemini client with status indicator
 with st.status("Initializing chatbot resources (Client & FAISS Cache)...", expanded=False) as status:
@@ -119,24 +113,15 @@ with st.sidebar:
     # Live matches toggle
     st.markdown("---")
     st.subheader("🏏 Live Matches")
-    
-    # Toggle for showing matches
     show_matches = st.toggle("Show Live Cricket Updates", value=st.session_state.show_live_matches)
     
-    # Toggle for showing matches in sidebar
-    show_in_sidebar = st.toggle("Show Matches in Sidebar", value=st.session_state.show_matches_in_sidebar)
-    
-    # Update session state if toggles changed
+    # Update session state if toggle changed
     if show_matches != st.session_state.show_live_matches:
         st.session_state.show_live_matches = show_matches
         st.rerun()
-        
-    if show_in_sidebar != st.session_state.show_matches_in_sidebar:
-        st.session_state.show_matches_in_sidebar = show_in_sidebar
-        st.rerun()
     
-    # Display live matches in sidebar if enabled and set to show in sidebar
-    if st.session_state.show_live_matches and st.session_state.show_matches_in_sidebar:
+    # Display live matches in sidebar if enabled
+    if st.session_state.show_live_matches:
         st.markdown("---")
         display_live_matches()
     
@@ -166,18 +151,4 @@ if st.session_state.show_scorecard and st.session_state.selected_match_id:
     from components.scorecard import display_scorecard
     display_scorecard(st.session_state.selected_match_id, st.session_state.selected_match_title)
 else:
-    # Create a layout with optional live matches section
-    if st.session_state.show_live_matches and not st.session_state.show_matches_in_sidebar:
-        # Two-column layout with matches on left, chatbot on right
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.header("🏏 Live Cricket Updates")
-            st.markdown("---")
-            display_live_matches()
-        
-        with col2:
-            display_chatbot()
-    else:
-        # Full-width chatbot
-        display_chatbot()
+    display_chatbot()

@@ -1,8 +1,10 @@
 import os
 import json
-import faiss
-import numpy as np
+import sys
 import time
+import traceback
+import numpy as np
+import faiss
 from config import (
     CACHE_DIR, CACHE_INDEX_FILE, CACHE_MAPPING_FILE, 
     CACHE_SIMILARITY_THRESHOLD, EMBEDDING_DIM
@@ -94,39 +96,6 @@ def get_cache_info():
         "threshold": CACHE_SIMILARITY_THRESHOLD
     }
 
-def add_to_cache(query, query_vector, result_data):
-    """Add a query and its result to the cache"""
-    global faiss_index, index_id_to_data, next_faiss_id
-    
-    # Ensure cache is loaded
-    load_faiss_cache()
-    
-    query_hash = normalize_query_for_filename(query)
-    cache_filepath = os.path.join(CACHE_DIR, f"{query_hash}.json")
-    
-    try:
-        # Save result data to file
-        result_to_save = result_data.copy()
-        result_to_save['_cached_original_query'] = query
-        result_to_save['_cache_timestamp'] = time.time()
-        
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        with open(cache_filepath, 'w', encoding='utf-8') as f:
-            json.dump(result_to_save, f, indent=2, ensure_ascii=False)
-        
-        # Add to FAISS index
-        if query_vector is not None:
-            current_id = next_faiss_id
-            faiss_index.add(query_vector.reshape(1, -1))
-            index_id_to_data[current_id] = [query, cache_filepath]
-            next_faiss_id += 1
-            save_faiss_cache()
-            return True
-    except Exception as e:
-        print(f"Error adding to cache: {e}", file=sys.stderr)
-    
-    return False
-
 def get_from_cache(query, query_vector):
     """Try to get a result from the cache"""
     global faiss_index, index_id_to_data
@@ -166,3 +135,36 @@ def get_from_cache(query, query_vector):
         print(f"Error retrieving from cache: {e}", file=sys.stderr)
     
     return None, -1.0
+
+def add_to_cache(query, query_vector, result_data):
+    """Add a query and its result to the cache"""
+    global faiss_index, index_id_to_data, next_faiss_id
+    
+    # Ensure cache is loaded
+    load_faiss_cache()
+    
+    query_hash = normalize_query_for_filename(query)
+    cache_filepath = os.path.join(CACHE_DIR, f"{query_hash}.json")
+    
+    try:
+        # Save result data to file
+        result_to_save = result_data.copy()
+        result_to_save['_cached_original_query'] = query
+        result_to_save['_cache_timestamp'] = time.time()
+        
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(cache_filepath, 'w', encoding='utf-8') as f:
+            json.dump(result_to_save, f, indent=2, ensure_ascii=False)
+        
+        # Add to FAISS index
+        if query_vector is not None:
+            current_id = next_faiss_id
+            faiss_index.add(query_vector.reshape(1, -1))
+            index_id_to_data[current_id] = [query, cache_filepath]
+            next_faiss_id += 1
+            save_faiss_cache()
+            return True
+    except Exception as e:
+        print(f"Error adding to cache: {e}", file=sys.stderr)
+    
+    return False

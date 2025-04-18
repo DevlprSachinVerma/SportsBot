@@ -25,7 +25,6 @@ except Exception as e:
 
 # Global client variable
 client = None
-tools = None
 
 @st.cache_resource
 def initialize_gemini_client():
@@ -50,15 +49,21 @@ def initialize_gemini_client():
         print(traceback.format_exc(), file=sys.stderr)
         st.stop()
 
+def get_client():
+    """Get the initialized Gemini client"""
+    global client
+    if client is None:
+        initialize_gemini_client()
+    return client
+
 def get_tools():
     """Returns the list of tools available to the Gemini model."""
-    global tools
+    # Import here to avoid circular imports
+    from utils.web_search import get_search_results_with_cache
     
-    if tools is None:
-        # Import here to avoid circular imports
-        from utils.web_search import get_search_results_with_cache
-        tools = [get_search_results_with_cache]
-        
+    print("Defining Tool List (Web Search with Cache)...")
+    tools = [get_search_results_with_cache]
+    print(f"✅ Tools defined: {[func.__name__ for func in tools]}")
     return tools
 
 def get_chat_session():
@@ -68,18 +73,19 @@ def get_chat_session():
             print(f"\nCreating NEW Gemini Chat Session with model '{MODEL_NAME}'...")
             
             # Ensure client is initialized
+            client = get_client()
             if client is None:
-                initialize_gemini_client()
+                raise ValueError("Gemini client is not initialized before creating chat.")
             
             # Get tools
-            tools_list = get_tools()
+            tools = get_tools()
             
             # Create chat session
             st.session_state.chat = client.chats.create(
                 model=MODEL_NAME,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
-                    tools=tools_list,
+                    tools=tools,
                 )
             )
             print("✅ New Gemini chat session created and stored.")
@@ -90,10 +96,3 @@ def get_chat_session():
             st.stop()
     
     return st.session_state.chat
-
-def get_client():
-    """Get the initialized Gemini client"""
-    global client
-    if client is None:
-        initialize_gemini_client()
-    return client

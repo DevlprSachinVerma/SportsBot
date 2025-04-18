@@ -2,12 +2,15 @@ import numpy as np
 import sys
 import traceback
 
-def get_embedding(text: str, task_type="RETRIEVAL_QUERY") -> np.ndarray | None:
+def get_embedding(text: str, task_type="RETRIEVAL_QUERY") -> np.ndarray:
     """Generates an embedding for the given text using the configured model."""
     # Import here to avoid circular imports
     from services.gemini_service import get_client
     
     client = get_client()
+    if client is None:
+        print("   ⚠️ Gemini client not initialized yet in get_embedding.", file=sys.stderr)
+        return None
     
     if not text or not isinstance(text, str):
         print(f"   ⚠️ Invalid input for embedding: {type(text)}", file=sys.stderr)

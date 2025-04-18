@@ -1,9 +1,17 @@
 {
-  "next_id": 1,
+  "next_id": 3,
   "mapping": {
     "0": [
       "tomorrow ipl match schedule",
       "search_cache_v6_text_commentary/cc4da55476d423413291a2ab49aa6c3caa7d359e.json"
+    ],
+    "1": [
+      "latest IPL match result",
+      "search_cache_v6_text_commentary/bcd99da514b27545940a0afc73127119b502ec02.json"
+    ],
+    "2": [
+      "top performers SRH vs MI IPL yesterday",
+      "search_cache_v6_text_commentary/f2799c900b3f50cc585e86c9341a00a5c06bda4d.json"
     ]
   }
 }

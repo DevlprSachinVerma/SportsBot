@@ -5,7 +5,7 @@ import traceback
 def display_chatbot():
     """Display the chatbot interface"""
     st.title("🏆 Sports Chatbot ⚽")
-    st.caption(f"Powered by Google Gemini with Web Search & FAISS Semantic Cache")
+    st.caption("Powered by Google Gemini with Web Search & FAISS Semantic Cache")
     st.markdown("---")
     
     # Initialize chat history if needed
@@ -33,7 +33,7 @@ def display_chatbot():
                 print("🤖 Assistant Thinking...")
                 
                 with st.spinner("Thinking... (May perform web search)"):
-                    # Local import to avoid circular dependency
+                    # Import here to avoid circular imports
                     from services.gemini_service import get_chat_session
                     
                     # Get chat session and send message
